@@ -88,7 +88,9 @@ class PreparedEmail extends Email {
         },
       },
       send: true,
-      transport: transport,
+      // email-templates accepts any Nodemailer transport with sendMail().
+      // Its v8 typings still require MailMessage, removed in Nodemailer 10.
+      transport: transport as unknown as Email.NodeMailerTransportOptions,
       preview: false,
     });
   }

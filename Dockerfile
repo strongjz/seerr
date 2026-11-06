@@ -1,11 +1,11 @@
-FROM node:22.23.2-alpine3.23@sha256:46825fbbd4e996a78b7a2cdc08d75e38a5a505bdab95dcda55605359bf124bc6 AS base
+FROM docker.io/library/node:22-alpine3.23@sha256:2cfe8c19bd3df0192ad5dfd2e13e86567743ffa1eb614e750a706891f19606af AS base
 ARG SOURCE_DATE_EPOCH
 ARG TARGETPLATFORM
 ENV TARGETPLATFORM=${TARGETPLATFORM:-linux/amd64}
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN apk upgrade --no-cache && corepack enable
 
 COPY . ./app
 WORKDIR /app
@@ -50,19 +50,21 @@ RUN pnpm build
 
 RUN rm -rf .next/cache
 
-FROM node:22.23.2-alpine3.23@sha256:46825fbbd4e996a78b7a2cdc08d75e38a5a505bdab95dcda55605359bf124bc6
+FROM docker.io/library/node:22-alpine3.23@sha256:2cfe8c19bd3df0192ad5dfd2e13e86567743ffa1eb614e750a706891f19606af
 ARG SOURCE_DATE_EPOCH
 ARG COMMIT_TAG
 ENV NODE_ENV=production
 ENV COMMIT_TAG=${COMMIT_TAG}
 
-RUN apk add --no-cache tzdata
+RUN apk upgrade --no-cache && apk add --no-cache tzdata && rm -rf /usr/local/lib/node_modules/npm /opt/yarn* /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
 USER node:node
 
 WORKDIR /app
 
-COPY --chown=node:node . .
+COPY --chown=node:node package.json next.config.ts seerr-api.yml ./
+COPY --chown=node:node public ./public
+RUN mkdir -p config
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
 COPY --chown=node:node --from=build /app/.next ./.next
 COPY --chown=node:node --from=build /app/dist ./dist
@@ -72,4 +74,4 @@ RUN touch config/DOCKER && \
 
 EXPOSE 5055
 
-CMD [ "npm", "start" ]
+CMD [ "node", "dist/index.js" ]
